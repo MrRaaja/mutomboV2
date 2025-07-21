@@ -9,30 +9,102 @@ const int IN3 = D5;  // GPIO14
 const int IN4 = D6;  // GPIO12
 Stepper stepper(stepsPerRevolution, IN1, IN3, IN2, IN4);
 
+
+enum Command{
+  HOME,
+  OPEN,
+  CLOSE,
+  HALF,
+  GET_POSITION,
+  RESET,
+  UNKNOWN
+}
+
+const int HOME_DIRECTION = -1;
+
+
+
+
 // === Rail Parameters ===
-const int totalTravelSteps = 3130;  // Full 50cm travel (10mm pulley)
+const int TOTAL_STEPS = 3130;  // Full 50cm travel (10mm pulley)
 int currentPosition = 0;
+
+Command currentCommand = UNKNOWN;
 
 // === Limit Switch (optional) ===
 const int limitSwitchPin = D7;
-bool useLimitSwitch = true;
+//bool useLimitSwitch = true; no usage for now
 
+
+const int stepsPerLoop = 1;
 void stepNonBlocking(int stepsToMove) {
   int direction = (stepsToMove > 0) ? -1 : 1;
   int stepsRemaining = abs(stepsToMove);
 
   for (int i = 0; i < stepsRemaining; i++) {
-    stepper.step(direction);
+    stepper.step(stepsPerLoop * direction);
+    addToCurrentPosition(stepsPerLoop * direction);
     yield();  // prevent WDT reset
   }
 }
-
-void moveTo(int targetPosition) {
+void stepToPosition(int targetPosition) {
   int stepsToMove = targetPosition - currentPosition;
-  Serial.println("🔄 Moving from " + String(currentPosition) + " to " + String(targetPosition) + " (" + String(stepsToMove) + " steps)");
   stepNonBlocking(stepsToMove);
-  currentPosition = targetPosition;
 }
+
+void addToCurrentPosition(int stepsToAdd){
+  updateCurrentPosition(currentPosition + stepsToAdd);
+} 
+void updateCurrentPosition(int position) {
+  if (currentPosition < 0) {
+    Serial.println("❗ Error: Current position cannot be negative. Resetting to 0.");
+    currentPosition = 0;
+  }
+  else if (currentPosition > TOTAL_STEPS) {
+    Serial.println("❗ Error: Current position exceeds total steps. Resetting to TOTAL_STEPS.");
+    currentPosition = TOTAL_STEPS;
+  }
+  else {
+    currentPosition = position;
+    Serial.println("✅ Current position updated to: " + String(currentPosition) + " steps");
+  }
+}
+void updateCurrentCommand(){
+  updateCurrentCommand(Serial.readStringUntil('\n').trim());
+}
+void updateCurrentCommand(String str){
+
+  switch (str)
+  {
+  case "home":
+    currentCommand = HOME;
+    break;
+  case "open":
+    currentCommand = OPEN;
+    break;
+
+  case "close":
+    currentCommand = CLOSE;
+    break;
+
+  case "half":
+    currentCommand = HALF;
+    break;  
+  case "pos":
+    currentCommand = GET_POSITION;
+    break;
+  default:
+    currentCommand = UNKNOWN;
+    break;
+  }
+}
+
+void moveToSwitch(int direction) {
+  while(digitalRead(limitSwitchPin)!=HIGH){ // need to check if != or == idk how this works
+    stepNonBlocking(direction);
+  }  
+}
+
 
 
 void setup() {
@@ -53,51 +125,48 @@ void setup() {
 
 void loop() {
   if (Serial.available()) {
-    String command = Serial.readStringUntil('\n');
-    command.trim();
 
-    if (command == "home") {
-      while (digitalRead(limitSwitchPin)==HIGH)  // Replace 'condition' with your actual condition
-      {
-        stepNonBlocking(-1);  // Move towards the limit switch
-      }
-      currentPosition = 0;  // Reset position after homing
-      Serial.println("🏠 Homing complete. Current position reset to 0.");
-      {
-        /* code */
-      }
+    updateCurrentCommand();
+
+    switch (currentCommand)
+    {
+      case HOME:
+        moveToSwitch(HOME_DIRECTION);
+        updateCurrentPosition(0);
+        Serial.println("🏠 Homing complete. Current position reset to 0.");
+        break;
+
+      case OPEN:
+        stepToPosition(TOTAL_STEPS);
+        Serial.println("🚪 Opened to maximum position: " + String(TOTAL_STEPS) + " steps");
+        break;
+
+      case CLOSE:
+        //idk what to do you did HOME and CLOSE the same???
+        break;
+
+      case HALF:
+        stepToPosition(TOTAL_STEPS / 2);
+        Serial.println("🚪 Moved to half position: " + String(TOTAL_STEPS / 2) + " steps");
+        break;
       
-    } 
-    if (command == "open") {
-      moveTo(totalTravelSteps);
-    }
-    else if (command == "close") {
-      while (digitalRead(limitSwitchPin)==HIGH)  // Replace 'condition' with your actual condition
-      {
-        stepNonBlocking(-1);  // Move towards the limit switch
-      }
-      currentPosition = 0;  // Reset position after homing
-      Serial.println("🏠 Homing complete. Current position reset to 0.");
-      {
-    }}
-    else if (command == "half") {
-      moveTo(totalTravelSteps / 2);
-    }
-    else if (command == "pos") {
-      Serial.println("📍 Current Position: " + String(currentPosition) + " steps");
-    }
-    else if (command == "reset") {
-      Serial.println("♻️ Resetting position counter to 0 (no movement)");
-      currentPosition = 0;
-    }
-    else {
-      Serial.println("❓ Unknown command. Try: open, close, half, pos, reset");
+      case GET_POSITION:
+        Serial.println("📍 Current Position: " + String(currentPosition) + " steps")
+        break;
+      case RESET:
+        Serial.println("♻️ Resetting position counter to 0 (no movement)");
+        updateCurrentPosition(0);
+        break;
+      default:
+        Serial.println("❓ Unknown command. Try: home, open, close, half, pos, reset");
+        break;
     }
   }
+}
+
 /*
   if (digitalRead(limitSwitchPin) == LOW) {
     Serial.println("🛑 Limit switch triggered. Resetting position.");
     currentPosition = 0;
     delay(1000);
   }*/
-}
