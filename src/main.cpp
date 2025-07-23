@@ -1,17 +1,11 @@
 #include <Arduino.h>
-#include <Stepper.h>
-#include <cctype>
 
-// === Stepper Configuration ===
-const int stepsPerRevolution = 200;
-const int IN1 = D1;  // GPIO5
-const int IN2 = D2;  // GPIO4
-const int IN3 = D5;  // GPIO14
-const int IN4 = D6;  // GPIO12
-Stepper stepper(stepsPerRevolution, IN1, IN3, IN2, IN4);
+const int STEP_PIN = D1; // STEP
+const int DIR_PIN = D2;  // DIR
+const int EN_PIN = D3;   // ENABLE (optional)
 
-
-enum Command{
+enum Command
+{
   OPEN,
   CLOSE,
   HALF,
@@ -22,52 +16,66 @@ enum Command{
 
 const int HOME_DIRECTION = 1;
 
-
-
-
 // === Rail Parameters ===
-const int TOTAL_STEPS = 3130;  // Full 50cm travel (10mm pulley)
+const int TOTAL_STEPS = 3130; // Full 50cm travel (10mm pulley)
 int currentPosition = 0;
 
 Command currentCommand = UNKNOWN;
 
 // === Limit Switch (optional) ===
 const int limitSwitchPin = D7;
-//bool useLimitSwitch = true; no usage for now
-
+// bool useLimitSwitch = true; no usage for now
 
 const int stepsPerLoop = 1;
 
-
-void updateCurrentPosition(int position) {
-  if (currentPosition < 0) {
+void updateCurrentPosition(int position)
+{
+  if (currentPosition < 0)
+  {
     Serial.println("❗ Error: Current position cannot be negative. Resetting to 0.");
     currentPosition = 0;
   }
-  else if (currentPosition > TOTAL_STEPS) {
+  else if (currentPosition > TOTAL_STEPS)
+  {
     Serial.println("❗ Error: Current position exceeds total steps. Resetting to TOTAL_STEPS.");
     currentPosition = TOTAL_STEPS;
   }
-  else {
+  else
+  {
     currentPosition = position;
     Serial.println("✅ Current position updated to: " + String(currentPosition) + " steps");
   }
 }
-void stepNonBlocking(int stepsToMove) {
+
+double delay = 800; //speed (less is faster, more is slower)
+void stepMotor(int steps, int direction) {
+  digitalWrite(DIR_PIN, direction > 0 ? HIGH : LOW);
+  for (int i = 0; i < abs(steps); i++) {
+    digitalWrite(STEP_PIN, HIGH);
+    delayMicroseconds(delay);  // adjust speed
+    digitalWrite(STEP_PIN, LOW);
+    delayMicroseconds(delay);
+  }
+}
+void stepNonBlocking(int stepsToMove)
+{
   int direction = (stepsToMove > 0) ? 1 : -1;
   int stepsRemaining = abs(stepsToMove);
 
-  for (int i = 0; i < stepsRemaining; i++) {
-    stepper.step(stepsPerLoop * direction);
+  for (int i = 0; i < stepsRemaining; i++)
+  {
+    stepMotor(1, direction);
     updateCurrentPosition(currentPosition + (stepsPerLoop * direction));
-    yield();  // prevent WDT reset
+    yield(); // prevent WDT reset
   }
 }
-void stepToPosition(int targetPosition) {
+void stepToPosition(int targetPosition)
+{
   int stepsToMove = targetPosition - currentPosition;
   stepNonBlocking(stepsToMove);
 }
-void updateCurrentCommand(int cmd){
+void updateCurrentCommand(int cmd)
+{
 
   switch (cmd)
   {
@@ -81,7 +89,7 @@ void updateCurrentCommand(int cmd){
 
   case 3:
     currentCommand = HALF;
-    break;  
+    break;
   case 4:
     currentCommand = GET_POSITION;
     break;
@@ -91,27 +99,36 @@ void updateCurrentCommand(int cmd){
   }
 }
 
-void updateCurrentCommand(){
+void updateCurrentCommand()
+{
   updateCurrentCommand(Serial.readStringUntil('\n').toInt());
 }
 
-void moveToSwitch(int direction) {
-  while(digitalRead(limitSwitchPin)==HIGH){ // need to check if != or == idk how this works
+void moveToSwitch(int direction)
+{
+  while (digitalRead(limitSwitchPin) == HIGH)
+  { // need to check if != or == idk how this works
     stepNonBlocking(direction);
-  }  
+  }
 }
 
-
-
-void setup() {
+void setup()
+{
   Serial.begin(115200);
-  stepper.setSpeed(120);  
+  pinMode(STEP_PIN, OUTPUT);
+  pinMode(DIR_PIN, OUTPUT);
+  pinMode(EN_PIN, OUTPUT);
+  digitalWrite(EN_PIN, LOW); // Enable the driver
   pinMode(limitSwitchPin, INPUT_PULLUP);
 
-  if (digitalRead(limitSwitchPin) == LOW) {
+
+  if (digitalRead(limitSwitchPin) == LOW)
+  {
     Serial.println("⚠️ Limit switch is already triggered. Resetting position to 0.");
     currentPosition = TOTAL_STEPS;
-  } else {
+  }
+  else
+  {
     Serial.println("✅ Limit switch is not triggered.");
   }
 
@@ -119,41 +136,43 @@ void setup() {
   Serial.println("Available commands: open, close, half, pos, reset");
 }
 
-void loop() {
-  if (Serial.available()) {
+void loop()
+{
+  if (Serial.available())
+  {
 
     updateCurrentCommand();
 
     switch (currentCommand)
     {
 
-      case OPEN:
-        stepToPosition(0);
-        Serial.println("🚪 Opened to maximum position: " + String(TOTAL_STEPS) + " steps");
-        break;
+    case OPEN:
+      stepToPosition(0);
+      Serial.println("🚪 Opened to maximum position: " + String(TOTAL_STEPS) + " steps");
+      break;
 
-      case CLOSE:
-      
-        moveToSwitch(HOME_DIRECTION);
-        updateCurrentPosition(TOTAL_STEPS);
-        Serial.println("🏠 Homing complete. Current position reset to " + TOTAL_STEPS);
-        break;
+    case CLOSE:
 
-      case HALF:
-        stepToPosition(TOTAL_STEPS / 2);
-        Serial.println("🚪 Moved to half position: " + String(TOTAL_STEPS / 2) + " steps");
-        break;
-      
-      case GET_POSITION:
-        Serial.println("📍 Current Position: " + String(currentPosition) + " steps");
-        break;
-      case RESET:
-        Serial.println("♻️ Resetting position counter to 0 (no movement)");
-        updateCurrentPosition(0);
-        break;
-      default:
-        Serial.println("❓ Unknown command. Try: open, close, half, pos, reset");
-        break;
+      moveToSwitch(HOME_DIRECTION);
+      updateCurrentPosition(TOTAL_STEPS);
+      Serial.println("🏠 Homing complete. Current position reset to " + TOTAL_STEPS);
+      break;
+
+    case HALF:
+      stepToPosition(TOTAL_STEPS / 2);
+      Serial.println("🚪 Moved to half position: " + String(TOTAL_STEPS / 2) + " steps");
+      break;
+
+    case GET_POSITION:
+      Serial.println("📍 Current Position: " + String(currentPosition) + " steps");
+      break;
+    case RESET:
+      Serial.println("♻️ Resetting position counter to 0 (no movement)");
+      updateCurrentPosition(0);
+      break;
+    default:
+      Serial.println("❓ Unknown command. Try: open, close, half, pos, reset");
+      break;
     }
   }
 }
