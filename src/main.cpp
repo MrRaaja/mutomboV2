@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <Stepper.h>
+#include <cctype>
 
 // === Stepper Configuration ===
 const int stepsPerRevolution = 200;
@@ -11,14 +12,13 @@ Stepper stepper(stepsPerRevolution, IN1, IN3, IN2, IN4);
 
 
 enum Command{
-  HOME,
   OPEN,
   CLOSE,
   HALF,
   GET_POSITION,
   RESET,
   UNKNOWN
-}
+};
 
 const int HOME_DIRECTION = -1;
 
@@ -37,24 +37,8 @@ const int limitSwitchPin = D7;
 
 
 const int stepsPerLoop = 1;
-void stepNonBlocking(int stepsToMove) {
-  int direction = (stepsToMove > 0) ? -1 : 1;
-  int stepsRemaining = abs(stepsToMove);
 
-  for (int i = 0; i < stepsRemaining; i++) {
-    stepper.step(stepsPerLoop * direction);
-    addToCurrentPosition(stepsPerLoop * direction);
-    yield();  // prevent WDT reset
-  }
-}
-void stepToPosition(int targetPosition) {
-  int stepsToMove = targetPosition - currentPosition;
-  stepNonBlocking(stepsToMove);
-}
 
-void addToCurrentPosition(int stepsToAdd){
-  updateCurrentPosition(currentPosition + stepsToAdd);
-} 
 void updateCurrentPosition(int position) {
   if (currentPosition < 0) {
     Serial.println("❗ Error: Current position cannot be negative. Resetting to 0.");
@@ -69,34 +53,46 @@ void updateCurrentPosition(int position) {
     Serial.println("✅ Current position updated to: " + String(currentPosition) + " steps");
   }
 }
-void updateCurrentCommand(){
-  updateCurrentCommand(Serial.readStringUntil('\n').trim());
-}
-void updateCurrentCommand(String str){
+void stepNonBlocking(int stepsToMove) {
+  int direction = (stepsToMove > 0) ? -1 : 1;
+  int stepsRemaining = abs(stepsToMove);
 
-  switch (str)
+  for (int i = 0; i < stepsRemaining; i++) {
+    stepper.step(stepsPerLoop * direction);
+    updateCurrentPosition(currentPosition + (stepsPerLoop * direction));
+    yield();  // prevent WDT reset
+  }
+}
+void stepToPosition(int targetPosition) {
+  int stepsToMove = targetPosition - currentPosition;
+  stepNonBlocking(stepsToMove);
+}
+void updateCurrentCommand(int cmd){
+
+  switch (cmd)
   {
-  case "home":
-    currentCommand = HOME;
-    break;
-  case "open":
+  case 1:
     currentCommand = OPEN;
     break;
 
-  case "close":
+  case 2:
     currentCommand = CLOSE;
     break;
 
-  case "half":
+  case 3:
     currentCommand = HALF;
     break;  
-  case "pos":
+  case 4:
     currentCommand = GET_POSITION;
     break;
   default:
     currentCommand = UNKNOWN;
     break;
   }
+}
+
+void updateCurrentCommand(){
+  updateCurrentCommand(Serial.readStringUntil('\n').toInt());
 }
 
 void moveToSwitch(int direction) {
@@ -130,11 +126,6 @@ void loop() {
 
     switch (currentCommand)
     {
-      case HOME:
-        moveToSwitch(HOME_DIRECTION);
-        updateCurrentPosition(0);
-        Serial.println("🏠 Homing complete. Current position reset to 0.");
-        break;
 
       case OPEN:
         stepToPosition(TOTAL_STEPS);
@@ -142,7 +133,10 @@ void loop() {
         break;
 
       case CLOSE:
-        //idk what to do you did HOME and CLOSE the same???
+      
+        moveToSwitch(HOME_DIRECTION);
+        updateCurrentPosition(0);
+        Serial.println("🏠 Homing complete. Current position reset to 0.");
         break;
 
       case HALF:
@@ -151,14 +145,14 @@ void loop() {
         break;
       
       case GET_POSITION:
-        Serial.println("📍 Current Position: " + String(currentPosition) + " steps")
+        Serial.println("📍 Current Position: " + String(currentPosition) + " steps");
         break;
       case RESET:
         Serial.println("♻️ Resetting position counter to 0 (no movement)");
         updateCurrentPosition(0);
         break;
       default:
-        Serial.println("❓ Unknown command. Try: home, open, close, half, pos, reset");
+        Serial.println("❓ Unknown command. Try: open, close, half, pos, reset");
         break;
     }
   }
