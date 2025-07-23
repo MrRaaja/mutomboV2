@@ -20,7 +20,7 @@ enum Command{
   UNKNOWN
 };
 
-const int HOME_DIRECTION = -1;
+const int HOME_DIRECTION = 1;
 
 
 
@@ -54,7 +54,7 @@ void updateCurrentPosition(int position) {
   }
 }
 void stepNonBlocking(int stepsToMove) {
-  int direction = (stepsToMove > 0) ? -1 : 1;
+  int direction = (stepsToMove > 0) ? 1 : -1;
   int stepsRemaining = abs(stepsToMove);
 
   for (int i = 0; i < stepsRemaining; i++) {
@@ -110,7 +110,7 @@ void setup() {
 
   if (digitalRead(limitSwitchPin) == LOW) {
     Serial.println("⚠️ Limit switch is already triggered. Resetting position to 0.");
-    currentPosition = 0;
+    currentPosition = TOTAL_STEPS;
   } else {
     Serial.println("✅ Limit switch is not triggered.");
   }
@@ -128,15 +128,15 @@ void loop() {
     {
 
       case OPEN:
-        stepToPosition(TOTAL_STEPS);
+        stepToPosition(0);
         Serial.println("🚪 Opened to maximum position: " + String(TOTAL_STEPS) + " steps");
         break;
 
       case CLOSE:
       
         moveToSwitch(HOME_DIRECTION);
-        updateCurrentPosition(0);
-        Serial.println("🏠 Homing complete. Current position reset to 0.");
+        updateCurrentPosition(TOTAL_STEPS);
+        Serial.println("🏠 Homing complete. Current position reset to " + TOTAL_STEPS);
         break;
 
       case HALF:
