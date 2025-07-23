@@ -3,10 +3,13 @@
 #include <AccelStepper.h>
 #include <cctype>
 
+const int TOTAL_STEPS = 3130; // Full 50cm travel (10mm pulley)
 
-const int STEP_PIN = D7; // STEP
-const int DIR_PIN = D8;  // DIR
-//const int EN_PIN = D3;   // ENABLE (optional)
+const int STEP_PIN  = D1;   // -> A4988 STEP
+const int DIR_PIN   = D2;   // -> A4988 DIR
+const int EN_PIN    = D3;   // -> A4988 ENABLE (active LOW). Set to -1 if not used.
+const int LIMIT_PIN = D7;   // -> Limit switch (to GND, INPUT_PULLUP)
+
 
 enum Command
 {
