@@ -96,7 +96,7 @@ void updateCurrentCommand(){
 }
 
 void moveToSwitch(int direction) {
-  while(digitalRead(limitSwitchPin)!=HIGH){ // need to check if != or == idk how this works
+  while(digitalRead(limitSwitchPin)==HIGH){ // need to check if != or == idk how this works
     stepNonBlocking(direction);
   }  
 }
