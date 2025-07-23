@@ -6,7 +6,7 @@
 
 const int STEP_PIN = D7; // STEP
 const int DIR_PIN = D8;  // DIR
-//const int EN_PIN = D3;   // ENABLE (optional)
+const int EN_PIN = -1;   // ENABLE (optional)
 
 enum Command
 {
@@ -124,8 +124,8 @@ void setup()
   Serial.begin(115200);
   pinMode(STEP_PIN, OUTPUT);
   pinMode(DIR_PIN, OUTPUT);
-  // pinMode(EN_PIN, OUTPUT);
-  // digitalWrite(EN_PIN, LOW); // Enable the driver
+  pinMode(EN_PIN, OUTPUT);
+  digitalWrite(EN_PIN, LOW); // Enable the driver
   pinMode(limitSwitchPin, INPUT_PULLUP);
 
 
