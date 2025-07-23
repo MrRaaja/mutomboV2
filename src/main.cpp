@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <Stepper.h>
 #include <cctype>
+#include <ESP8266WiFi.h> 
+#include <PubSubClient.h>
 
 // === Stepper Configuration ===
 const int stepsPerRevolution = 200;
@@ -8,6 +10,38 @@ const int IN1 = D1;  // GPIO5
 const int IN2 = D2;  // GPIO4
 const int IN3 = D5;  // GPIO14
 const int IN4 = D6;  // GPIO12
+
+const String ssid = "YOUR_WIFI_SSID";
+const String password = "YOUR_WIFI_PASSWORD";
+
+// === MQTT Broker Settings ===
+const String mqtt_server = "broker.hivemq.com";  // or local broker IP
+const int mqtt_port = 1883;
+const String mqtt_client_id = "StepperController";
+const String mqtt_command_topic = "stepper/control";
+const String mqtt_status_topic  = "stepper/status";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+void setup_wifi() {
+  delay(10);
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+}
+
 Stepper stepper(stepsPerRevolution, IN1, IN3, IN2, IN4);
 
 
