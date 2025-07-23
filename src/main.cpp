@@ -4,69 +4,38 @@
 #include <cctype>
 
 const int TOTAL_STEPS = 3130; // Full 50cm travel (10mm pulley)
-
-const int STEP_PIN  = D1;   // -> A4988 STEP
-const int DIR_PIN   = D2;   // -> A4988 DIR
-const int EN_PIN    = D3;   // -> A4988 ENABLE (active LOW). Set to -1 if not used.
-const int LIMIT_PIN = D7;   // -> Limit switch (to GND, INPUT_PULLUP)
-
-
-enum Command
-{
-  OPEN,
-  CLOSE,
-  HALF,
-  GET_POSITION,
-  RESET,
-  UNKNOWN
-};
-
-const int HOME_DIRECTION = 1;
-
-
-// === Rail Parameters ===
-const int TOTAL_STEPS = 3130; // Full 50cm travel (10mm pulley)
 int currentPosition = 0;
 
+const int STEP_PIN = -1;  // -> A4988 STEP
+const int DIR_PIN = -1;   // -> A4988 DIR
+const int EN_PIN = -1;    // -> A4988 ENABLE (active LOW). Set to -1 if not used.
+const int LIMIT_PIN = -1; // -> Limit switch (to GND, INPUT_PULLUP)
+
+const float MAX_SPEED = 600.0f;
+const float ACCELERATION = 5000.0f;
+
+enum Command {OPEN, CLOSE, HALF, GET_POSITION, RESET, UNKNOWN};
 Command currentCommand = UNKNOWN;
 
-// === Limit Switch (optional) ===
-const int limitSwitchPin = D7;
-// bool useLimitSwitch = true; no usage for now
+AccelStepper stepper(AccelStepper::DRIVER, STEP_PIN, DIR_PIN);
 
-const int stepsPerLoop = 1;
-
-
-
-void updateCurrentPosition(int position)
-{
-  if (currentPosition < 0)
-  {
-    Serial.println("❗ Error: Current position cannot be negative. Resetting to 0.");
-    currentPosition = 0;
-  }
-  else if (currentPosition > TOTAL_STEPS)
-  {
-    Serial.println("❗ Error: Current position exceeds total steps. Resetting to TOTAL_STEPS.");
-    currentPosition = TOTAL_STEPS;
-  }
-  else
-  {
-    currentPosition = position;
-    Serial.println("✅ Current position updated to: " + String(currentPosition) + " steps");
-  }
+void moveTo(long pos){
+  if(pos < 0) pos = 0;
+  if(pos > TOTAL_STEPS) pos = TOTAL_STEPS;  
+  stepper.moveTo(pos);
 }
 
-//int delay = 800; //speed (less is faster, more is slower)
-void stepMotor(int steps, int direction) {
-  digitalWrite(DIR_PIN, direction > 0 ? HIGH : LOW);
-  for (int i = 0; i < abs(steps); i++) {
-    digitalWrite(STEP_PIN, HIGH);
-    delayMicroseconds(800);  // adjust speed
-    digitalWrite(STEP_PIN, LOW);
-    delayMicroseconds(800);
-  }
+Command parseCommand(String s) {
+  s.trim(); s.toLowerCase();
+  if (s == "open" || s == "1") return OPEN;
+  if (s == "close" || s == "2") return CLOSE;
+  if (s == "half" || s == "3") return HALF;
+  if (s == "pos" || s == "4") return GET_POSITION;
+  if (s == "reset" || s == "5") return RESET;
+  return UNKNOWN;
 }
+
+
 void stepNonBlocking(int stepsToMove)
 {
   int direction = (stepsToMove > 0) ? 1 : -1;
@@ -125,22 +94,18 @@ void moveToSwitch(int direction)
 void setup()
 {
   Serial.begin(115200);
-  pinMode(STEP_PIN, OUTPUT);
-  pinMode(DIR_PIN, OUTPUT);
-  // pinMode(EN_PIN, OUTPUT);
-  // digitalWrite(EN_PIN, LOW); // Enable the driver
-  pinMode(limitSwitchPin, INPUT_PULLUP);
+  pinMode(LIMIT_PIN, INPUT_PULLUP);
 
-
-  if (digitalRead(limitSwitchPin) == LOW)
+  if(EN_PIN >= 0){
+    pinMode(EN_PIN, OUTPUT);
+    digitalWrite(EN_PIN, LOW);
+  }
+  if (digitalRead(LIMIT_PIN) == LOW)
   {
     Serial.println("⚠️ Limit switch is already triggered. Resetting position to 0.");
     currentPosition = TOTAL_STEPS;
-  }
-  else
-  {
-    Serial.println("✅ Limit switch is not triggered.");
-  }
+  } else Serial.println("✅ Limit switch is not triggered.");
+
 
   Serial.println("Stepper ready.");
   Serial.println("Available commands: open, close, half, pos, reset");
