@@ -28,7 +28,7 @@ int currentPosition = 0;
 Command currentCommand = UNKNOWN;
 
 // === Limit Switch (optional) ===
-const int limitSwitchPin = D7;
+const int limitSwitchPin = D6;
 // bool useLimitSwitch = true; no usage for now
 
 const int stepsPerLoop = 1;
@@ -58,9 +58,9 @@ void updateCurrentPosition(int position)
 void stepMotor(int steps, int direction) {
   digitalWrite(DIR_PIN, direction > 0 ? HIGH : LOW);
   for (int i = 0; i < abs(steps); i++) {
-    digitalWrite(STEP_PIN, HIGH);
+    digitalWrite(STEP_PIN, 50);
     delayMicroseconds(800);  // adjust speed
-    digitalWrite(STEP_PIN, LOW);
+    digitalWrite(STEP_PIN, 0);
     delayMicroseconds(800);
   }
 }
