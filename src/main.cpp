@@ -1,8 +1,12 @@
-#include <Arduino.h>
 
-const int STEP_PIN = D1; // STEP
-const int DIR_PIN = D2;  // DIR
-const int EN_PIN = D3;   // ENABLE (optional)
+#include <Arduino.h>
+#include <AccelStepper.h>
+#include <cctype>
+
+
+const int STEP_PIN = D7; // STEP
+const int DIR_PIN = D8;  // DIR
+//const int EN_PIN = D3;   // ENABLE (optional)
 
 enum Command
 {
@@ -16,6 +20,7 @@ enum Command
 
 const int HOME_DIRECTION = 1;
 
+
 // === Rail Parameters ===
 const int TOTAL_STEPS = 3130; // Full 50cm travel (10mm pulley)
 int currentPosition = 0;
@@ -27,6 +32,8 @@ const int limitSwitchPin = D7;
 // bool useLimitSwitch = true; no usage for now
 
 const int stepsPerLoop = 1;
+
+
 
 void updateCurrentPosition(int position)
 {
@@ -47,14 +54,14 @@ void updateCurrentPosition(int position)
   }
 }
 
-double delay = 800; //speed (less is faster, more is slower)
+//int delay = 800; //speed (less is faster, more is slower)
 void stepMotor(int steps, int direction) {
   digitalWrite(DIR_PIN, direction > 0 ? HIGH : LOW);
   for (int i = 0; i < abs(steps); i++) {
     digitalWrite(STEP_PIN, HIGH);
-    delayMicroseconds(delay);  // adjust speed
+    delayMicroseconds(800);  // adjust speed
     digitalWrite(STEP_PIN, LOW);
-    delayMicroseconds(delay);
+    delayMicroseconds(800);
   }
 }
 void stepNonBlocking(int stepsToMove)
@@ -117,8 +124,8 @@ void setup()
   Serial.begin(115200);
   pinMode(STEP_PIN, OUTPUT);
   pinMode(DIR_PIN, OUTPUT);
-  pinMode(EN_PIN, OUTPUT);
-  digitalWrite(EN_PIN, LOW); // Enable the driver
+  // pinMode(EN_PIN, OUTPUT);
+  // digitalWrite(EN_PIN, LOW); // Enable the driver
   pinMode(limitSwitchPin, INPUT_PULLUP);
 
 
@@ -141,6 +148,11 @@ void loop()
   if (Serial.available())
   {
 
+    // char c = Serial.read();
+    // if (c == '\n' || c == '\r') {
+    //   Serial.println("🛑 Stop requested!");
+    //   return;
+    // }
     updateCurrentCommand();
 
     switch (currentCommand)
