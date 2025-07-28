@@ -1,39 +1,14 @@
 
 #include <Arduino.h>
-#include <AccelStepper.h>
-#include <cctype>
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+#include <Constants.h>
 
+Command currentCommand;
 
-const int STEP_PIN = D7; // STEP
-const int DIR_PIN = D8;  // DIR
-const int EN_PIN = -1;   // ENABLE (optional)
+int currentPosition;
 
-enum Command
-{
-  OPEN,
-  CLOSE,
-  HALF,
-  GET_POSITION,
-  RESET,
-  UNKNOWN
-};
-
-const int HOME_DIRECTION = 1;
-
-
-// === Rail Parameters ===
-const int TOTAL_STEPS = 3130; // Full 50cm travel (10mm pulley)
-int currentPosition = 0;
-
-Command currentCommand = UNKNOWN;
-
-// === Limit Switch (optional) ===
-const int limitSwitchPin = D6;
 // bool useLimitSwitch = true; no usage for now
-
-const int stepsPerLoop = 1;
-
-
 
 void updateCurrentPosition(int position)
 {
@@ -54,17 +29,18 @@ void updateCurrentPosition(int position)
   }
 }
 
-//int delay = 800; //speed (less is faster, more is slower)
-void stepMotor(int steps, int direction) {
+void stepMotor(int steps, int direction)
+{
   digitalWrite(DIR_PIN, direction > 0 ? HIGH : LOW);
-  for (int i = 0; i < abs(steps); i++) {
+  for (int i = 0; i < abs(steps); i++)
+  {
     digitalWrite(STEP_PIN, 50);
-    delayMicroseconds(800);  // adjust speed
+    delayMicroseconds(motorDelay); // adjust speed
     digitalWrite(STEP_PIN, 0);
-    delayMicroseconds(800);
+    delayMicroseconds(motorDelay);
   }
 }
-void stepNonBlocking(int stepsToMove)
+void stepWithoutBlocking(int stepsToMove)
 {
   int direction = (stepsToMove > 0) ? 1 : -1;
   int stepsRemaining = abs(stepsToMove);
@@ -79,7 +55,7 @@ void stepNonBlocking(int stepsToMove)
 void stepToPosition(int targetPosition)
 {
   int stepsToMove = targetPosition - currentPosition;
-  stepNonBlocking(stepsToMove);
+  stepWithoutBlocking(stepsToMove);
 }
 void updateCurrentCommand(int cmd)
 {
@@ -115,19 +91,20 @@ void moveToSwitch(int direction)
 {
   while (digitalRead(limitSwitchPin) == HIGH)
   { // need to check if != or == idk how this works
-    stepNonBlocking(direction);
+    stepWithoutBlocking(direction);
   }
 }
 
 void setup()
 {
+  currentPosition = 0;
+  currentCommand = UNKNOWN;
   Serial.begin(115200);
   pinMode(STEP_PIN, OUTPUT);
   pinMode(DIR_PIN, OUTPUT);
   pinMode(EN_PIN, OUTPUT);
   digitalWrite(EN_PIN, LOW); // Enable the driver
   pinMode(limitSwitchPin, INPUT_PULLUP);
-
 
   if (digitalRead(limitSwitchPin) == LOW)
   {
@@ -147,12 +124,6 @@ void loop()
 {
   if (Serial.available())
   {
-
-    // char c = Serial.read();
-    // if (c == '\n' || c == '\r') {
-    //   Serial.println("🛑 Stop requested!");
-    //   return;
-    // }
     updateCurrentCommand();
 
     switch (currentCommand)
@@ -188,10 +159,3 @@ void loop()
     }
   }
 }
-
-/*
-  if (digitalRead(limitSwitchPin) == LOW) {
-    Serial.println("🛑 Limit switch triggered. Resetting position.");
-    currentPosition = 0;
-    delay(1000);
-  }*/
