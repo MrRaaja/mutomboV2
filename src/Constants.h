@@ -10,9 +10,9 @@ extern const int MQTT_PORT = 1883;
 extern const String NAME = "Stepper";
 // extern const char* MQTT_USERNAME = "neojaasd";
 // extern const char* MQTT_PASSWORD = "neojaajoasden";
-extern const char* MQTT_TOPIC = (NAME + "/commands").c_str();
-extern const char* MQTT_STATUS_TOPIC = (NAME + "/status").c_str();
-extern const char* CLIENT_ID = (NAME + "_ID").c_str();
+extern const String MQTT_TOPIC = (NAME + "/commands");
+extern const String MQTT_STATUS_TOPIC = (NAME + "/status");
+extern const String CLIENT_ID = (NAME + "_ID");
 
 
 

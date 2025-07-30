@@ -1,76 +1,18 @@
 
 #include <Arduino.h>
-#include <ESP8266WiFi.h>
-#include <PubSubClient.h>
 #include <Constants.h>
+#include <MqttConection.h>
 
 Command currentCommand;
 int currentPosition;
 
-WiFiClient espClient;
-PubSubClient client(espClient);
 
-void updateCurrentCommandMQTT(String message);
 void updateCurrentCommand(int cmd);
 void updateCurrentPosition(int position);
 void stepMotor(int steps, int direction);
 void stepWithoutBlocking(int stepsToMove);
 void stepToPosition(int targetPosition);
 void moveToSwitch(int direction);
-void sendStatus(String status);
-void connectWiFi();
-void connectToMQTT();
-void mqttCallback(char *topic, byte *payload, unsigned int length);
-
-void connectToMQTT(){
-  client.setServer(MQTT_SERVER, MQTT_PORT);
-  client.setCallback(mqttCallback);
-
-  while(!client.connected()){
-    Serial.println("Connecting to MQTT server...");
-    if(client.connect(CLIENT_ID)){
-      Serial.println("Connected");
-      client.subscribe(MQTT_TOPIC);
-    }
-    else{
-      Serial.println("FAILED to connect, rc=" + String(client.state()));
-      delay(5000); // Retry after 5 seconds
-    }
-  }
-}
-
-void connectWiFi()
-{
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to WiFi");
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(500);
-    Serial.println("not connected");
-  }
-  Serial.println(" Connected!");
-}
-void mqttCallback(char *topic, byte *payload, unsigned int length)
-{
-  String message = "";
-  for (int i = 0; i < length; i++)
-  {
-    message += (char)payload[i];
-  }
-
-  Serial.println("MQTT command: " + message);
-
-  updateCurrentCommandMQTT(message);
-}
-
-void sendStatus(String status)
-{
-  if (client.connected())
-  {
-    client.publish(MQTT_TOPIC, status.c_str());
-    Serial.println("Sent: " + status);
-  }
-}
 void updateCurrentCommandMQTT(String message)
 {
   if (message == "open")
@@ -85,6 +27,8 @@ void updateCurrentCommandMQTT(String message)
     updateCurrentCommand(5);
   else
     updateCurrentCommand(0);
+
+  
 }
 
 void updateCurrentPosition(int position)
@@ -192,12 +136,10 @@ void setup()
   {
     Serial.println("✅ Limit switch is not triggered.");
   }
-
-  connectWiFi();
-  delay(2000);
-  connectToMQTT();
+  
 
   Serial.println("Stepper ready.");
+  setupMQTT();
   Serial.println("MQTT ready! Send commands to topic: " + NAME + "/command");
   Serial.println("Available commands: open, close, half, pos, reset");
 }
@@ -245,11 +187,8 @@ void loopSerial()
 void loop()
 {
   if(useMQTT){
-    if (!client.connected())
-    {
-      connectToMQTT();
-    }
-    client.loop();
+    loopMQTT();
+    updateCurrentCommandMQTT(getCallbackInfo());
   }
   else{
     loopSerial();
