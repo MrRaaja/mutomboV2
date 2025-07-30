@@ -10,6 +10,17 @@ int currentPosition;
 WiFiClient espClient;
 PubSubClient client(espClient);
 
+
+void updateCurrentCommandMQTT(String message);
+void updateCurrentCommand(int cmd);
+void updateCurrentPosition(int position);
+void stepMotor(int steps, int direction);
+void stepWithoutBlocking(int stepsToMove);
+void stepToPosition(int targetPosition);
+void moveToSwitch(int direction);
+void sendStatus(String status);
+void connectWiFi();
+
 void connectWiFi()
 {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
