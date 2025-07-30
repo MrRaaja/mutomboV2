@@ -8,25 +8,30 @@ int currentPosition;
 
 
 void updateCurrentCommand(int cmd);
+void updateCurrentCommand(Command command);
 void updateCurrentPosition(int position);
 void stepMotor(int steps, int direction);
 void stepWithoutBlocking(int stepsToMove);
 void stepToPosition(int targetPosition);
 void moveToSwitch(int direction);
+int count = 0;
 void updateCurrentCommandMQTT(String message)
 {
+  message.toLowerCase();
+
   if (message == "open")
-    updateCurrentCommand(1);
+    updateCurrentCommand(OPEN);
   else if (message == "close")
-    updateCurrentCommand(2);
+  
+    updateCurrentCommand(CLOSE);
   else if (message == "half")
-    updateCurrentCommand(3);
+    updateCurrentCommand(HALF);
   else if (message == "pos")
-    updateCurrentCommand(4);
+    updateCurrentCommand(GET_POSITION);
   else if (message == "reset")
-    updateCurrentCommand(5);
+    updateCurrentCommand(RESET);
   else
-    updateCurrentCommand(0);
+    updateCurrentCommand(UNKNOWN);
 
   
 }
@@ -77,6 +82,10 @@ void stepToPosition(int targetPosition)
 {
   int stepsToMove = targetPosition - currentPosition;
   stepWithoutBlocking(stepsToMove);
+}
+void updateCurrentCommand(Command command){
+  currentCommand = command;
+
 }
 void updateCurrentCommand(int cmd)
 {
@@ -194,3 +203,4 @@ void loop()
     loopSerial();
   }
 }
+  

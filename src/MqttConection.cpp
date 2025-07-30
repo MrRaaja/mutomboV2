@@ -1,33 +1,33 @@
+
+#include <Constants.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
-#include <Constants.h>
 #include <MqttConection.h>
-String info = "";
 
 // === Globals ===
 WiFiClient espClient;
 PubSubClient client(espClient);
-//PLEASE
-
-const String CLIENT_ID = "Stepper_" + String(ESP.getChipId());
-const String MQTT_TOPIC = "Stepper/command";
+String mqttInfo = "hello";
+// PLEASE
 
 // === MQTT callback - just print received messages ===
 void mqttCallback(char *topic, byte *payload, unsigned int length)
 {
   Serial.print("Message arrived on topic: ");
   Serial.println(topic);
-  Serial.print("Payload: ");
   String message = "";
   for (unsigned int i = 0; i < length; i++)
   {
+    
     message += ((char)payload[i]);
   }
-  info = message;
-
+  Serial.println("MESSAGE: " + message);
+  mqttInfo = message;
 }
-String getCallbackInfo(){
-    return info;
+String getCallbackInfo()
+{
+ // Serial.println("MQTT Callback Info: " + mqttInfo);
+  return mqttInfo;
 }
 
 // === Connect to WiFi ===
@@ -75,11 +75,13 @@ void setupMQTT()
   client.setCallback(mqttCallback);
 }
 
-void loopMQTT(){
-    
+void loopMQTT()
+{
+
   if (!client.connected())
   {
     reconnectMQTT();
   }
   client.loop();
+  
 }
