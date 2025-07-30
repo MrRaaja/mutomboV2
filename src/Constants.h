@@ -5,11 +5,14 @@ extern const bool useMQTT = true; // Set to false to disable MQTT functionality
 
 extern const char* WIFI_SSID = "neoja";
 extern const char* WIFI_PASSWORD = "neojaajoen";
-extern const char* MQTT_SERVER = "test.mosquitto.org";
+extern const char* MQTT_SERVER = "192.168.1.200";
 extern const int MQTT_PORT = 1883;
 extern const String NAME = "Stepper";
+// extern const char* MQTT_USERNAME = "neojaasd";
+// extern const char* MQTT_PASSWORD = "neojaajoasden";
 extern const char* MQTT_TOPIC = (NAME + "/commands").c_str();
 extern const char* MQTT_STATUS_TOPIC = (NAME + "/status").c_str();
+extern const char* CLIENT_ID = (NAME + "_ID").c_str();
 
 
 

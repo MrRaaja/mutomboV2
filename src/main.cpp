@@ -19,6 +19,25 @@ void stepToPosition(int targetPosition);
 void moveToSwitch(int direction);
 void sendStatus(String status);
 void connectWiFi();
+void connectToMQTT();
+void mqttCallback(char *topic, byte *payload, unsigned int length);
+
+void connectToMQTT(){
+  client.setServer(MQTT_SERVER, MQTT_PORT);
+  client.setCallback(mqttCallback);
+
+  while(!client.connected()){
+    Serial.println("Connecting to MQTT server...");
+    if(client.connect(CLIENT_ID)){
+      Serial.println("Connected");
+      client.subscribe(MQTT_TOPIC);
+    }
+    else{
+      Serial.println("FAILED to connect, rc=" + String(client.state()));
+      delay(5000); // Retry after 5 seconds
+    }
+  }
+}
 
 void connectWiFi()
 {
@@ -27,7 +46,7 @@ void connectWiFi()
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
-    Serial.print("not connected");
+    Serial.println("not connected");
   }
   Serial.println(" Connected!");
 }
@@ -48,7 +67,7 @@ void sendStatus(String status)
 {
   if (client.connected())
   {
-    client.publish((NAME + "/status").c_str(), status.c_str());
+    client.publish(MQTT_TOPIC, status.c_str());
     Serial.println("Sent: " + status);
   }
 }
@@ -175,8 +194,8 @@ void setup()
   }
 
   connectWiFi();
-  client.setServer(MQTT_SERVER, MQTT_PORT);
-  client.setCallback(mqttCallback);
+  delay(2000);
+  connectToMQTT();
 
   Serial.println("Stepper ready.");
   Serial.println("MQTT ready! Send commands to topic: " + NAME + "/command");
@@ -225,31 +244,14 @@ void loopSerial()
 
 void loop()
 {
-  if (!useMQTT)
-  {
-    loopSerial();
+  if(useMQTT){
+    if (!client.connected())
+    {
+      connectToMQTT();
+    }
+    client.loop();
   }
-  else
-  {
-    if (client.connected())
-    {
-      client.loop();
-      return;
-    }
-    if (client.connect((NAME + "_ID").c_str()))
-    {
-      client.subscribe(MQTT_TOPIC);
-      sendStatus("Connected");
-      return;
-    }
-    else
-    {
-      // Add this debug info
-      Serial.print("MQTT connection failed, rc=");
-      Serial.println(client.state());
-      Serial.println("Error codes: -4=timeout, -3=lost, -2=failed, -1=disconnected, 0=connected");
-    }
-    delay(1000); // Wait before retrying connection
-    Serial.println("Reconnecting to MQTT...");
+  else{
+    loopSerial();
   }
 }
