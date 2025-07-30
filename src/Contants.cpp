@@ -16,14 +16,15 @@ extern const String MQTT_STATUS_TOPIC = (NAME + "/status");
 extern const String CLIENT_ID = (NAME + "_ID");
 
 
+extern const int IN1 = D1;  // GPIO5
+extern const int IN2 = D2;  // GPIO4
+extern const int IN3 = D5;  // GPIO14
+extern const int IN4 = D6;  // GPIO12
 
-extern const int STEP_PIN = D7; // STEP
-extern const int DIR_PIN = D8;  // DIR
-extern const int EN_PIN = -1;   // ENABLE (optional)
-extern int LIMIT_SWITCH_PIN = D6;
+extern int LIMIT_SWITCH_PIN = D7;
 
 
-extern int HOME_DIRECTION = 1;
+extern int HOME_DIRECTION = -1;
 
 extern int MOTOR_DELAY = 800; // Speed (less is faster, more is slower)
 

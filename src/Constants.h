@@ -22,9 +22,11 @@ enum Command
   UNKNOWN
 };
 
-extern const int STEP_PIN; // STEP
-extern const int DIR_PIN;  // DIR
-extern const int EN_PIN;   // ENABLE (optional)
+extern const int IN1;  // GPIO5
+extern const int IN2;  // GPIO4
+extern const int IN3;  // GPIO14
+extern const int IN4;  // GPIO12
+
 extern int LIMIT_SWITCH_PIN;
 
 extern int HOME_DIRECTION;

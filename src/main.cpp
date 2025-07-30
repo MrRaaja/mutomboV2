@@ -3,9 +3,13 @@
 #include <Constants.h>
 #include <MqttConection.h>
 
+#include <Stepper.h>
+
 Command currentCommand;
 int currentPosition;
 
+
+Stepper stepper(200, IN1, IN2, IN3, IN4);
 
 void updateCurrentCommand(int cmd);
 void updateCurrentCommand(Command command);
@@ -22,7 +26,7 @@ void updateCurrentCommandMQTT(String message)
   if (message == "open")
     updateCurrentCommand(OPEN);
   else if (message == "close")
-  
+
     updateCurrentCommand(CLOSE);
   else if (message == "half")
     updateCurrentCommand(HALF);
@@ -32,8 +36,6 @@ void updateCurrentCommandMQTT(String message)
     updateCurrentCommand(RESET);
   else
     updateCurrentCommand(UNKNOWN);
-
-  
 }
 
 void updateCurrentPosition(int position)
@@ -57,13 +59,10 @@ void updateCurrentPosition(int position)
 
 void stepMotor(int steps, int direction)
 {
-  digitalWrite(DIR_PIN, direction > 0 ? HIGH : LOW);
+
   for (int i = 0; i < abs(steps); i++)
   {
-    digitalWrite(STEP_PIN, 50);
-    delayMicroseconds(MOTOR_DELAY); // adjust speed
-    digitalWrite(STEP_PIN, 0);
-    delayMicroseconds(MOTOR_DELAY);
+    stepper.step(direction);
   }
 }
 void stepWithoutBlocking(int stepsToMove)
@@ -83,9 +82,9 @@ void stepToPosition(int targetPosition)
   int stepsToMove = targetPosition - currentPosition;
   stepWithoutBlocking(stepsToMove);
 }
-void updateCurrentCommand(Command command){
+void updateCurrentCommand(Command command)
+{
   currentCommand = command;
-
 }
 void updateCurrentCommand(int cmd)
 {
@@ -130,10 +129,7 @@ void setup()
   currentPosition = 0;
   currentCommand = UNKNOWN;
   Serial.begin(115200);
-  pinMode(STEP_PIN, OUTPUT);
-  pinMode(DIR_PIN, OUTPUT);
-  pinMode(EN_PIN, OUTPUT);
-  digitalWrite(EN_PIN, LOW); // Enable the driver
+  stepper.setSpeed(120);
   pinMode(LIMIT_SWITCH_PIN, INPUT_PULLUP);
 
   if (digitalRead(LIMIT_SWITCH_PIN) == LOW)
@@ -145,7 +141,6 @@ void setup()
   {
     Serial.println("✅ Limit switch is not triggered.");
   }
-  
 
   Serial.println("Stepper ready.");
   setupMQTT();
@@ -153,54 +148,55 @@ void setup()
   Serial.println("Available commands: open, close, half, pos, reset");
 }
 
+void moveByCommand()
+{
+  switch (currentCommand)
+  {
+
+  case OPEN:
+    stepToPosition(TOTAL_STEPS);
+    Serial.println("🚪 Opened to maximum position: " + String(TOTAL_STEPS) + " steps");
+    break;
+
+  case CLOSE:
+
+    moveToSwitch(HOME_DIRECTION);
+    Serial.println("🏠 Homing complete. Current position reset to " + 0);
+    break;
+
+  case HALF:
+    stepToPosition(TOTAL_STEPS / 2);
+    Serial.println("🚪 Moved to half position: " + String(TOTAL_STEPS / 2) + " steps");
+    break;
+
+  case GET_POSITION:
+    Serial.println("📍 Current Position: " + String(currentPosition) + " steps");
+    break;
+  case RESET:
+    Serial.println("♻️ Resetting position counter to 0 (no movement)");
+    updateCurrentPosition(0);
+    break;
+  default:
+    Serial.println("❓ Unknown command. Try: open, close, half, pos, reset");
+    break;
+  }
+}
 void loopSerial()
 {
   if (Serial.available())
   {
     updateCurrentCommand();
-
-    switch (currentCommand)
-    {
-
-    case OPEN:
-      stepToPosition(0);
-      Serial.println("🚪 Opened to maximum position: " + String(TOTAL_STEPS) + " steps");
-      break;
-
-    case CLOSE:
-
-      moveToSwitch(HOME_DIRECTION);
-      updateCurrentPosition(TOTAL_STEPS);
-      Serial.println("🏠 Homing complete. Current position reset to " + TOTAL_STEPS);
-      break;
-
-    case HALF:
-      stepToPosition(TOTAL_STEPS / 2);
-      Serial.println("🚪 Moved to half position: " + String(TOTAL_STEPS / 2) + " steps");
-      break;
-
-    case GET_POSITION:
-      Serial.println("📍 Current Position: " + String(currentPosition) + " steps");
-      break;
-    case RESET:
-      Serial.println("♻️ Resetting position counter to 0 (no movement)");
-      updateCurrentPosition(0);
-      break;
-    default:
-      Serial.println("❓ Unknown command. Try: open, close, half, pos, reset");
-      break;
-    }
   }
 }
 
 void loop()
 {
-  if(useMQTT){
+  if (useMQTT)
+  {
     loopMQTT();
     updateCurrentCommandMQTT(getCallbackInfo());
   }
-  else{
-    loopSerial();
-  }
+  else loopSerial();
+
+  moveByCommand();
 }
-  

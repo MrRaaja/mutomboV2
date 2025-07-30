@@ -7,7 +7,7 @@
 // === Globals ===
 WiFiClient espClient;
 PubSubClient client(espClient);
-String mqttInfo = "hello";
+String mqttInfo = "";
 // PLEASE
 
 // === MQTT callback - just print received messages ===
