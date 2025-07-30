@@ -10,7 +10,6 @@ int currentPosition;
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-
 void updateCurrentCommandMQTT(String message);
 void updateCurrentCommand(int cmd);
 void updateCurrentPosition(int position);
@@ -65,9 +64,8 @@ void updateCurrentCommandMQTT(String message)
     updateCurrentCommand(4);
   else if (message == "reset")
     updateCurrentCommand(5);
-  else 
+  else
     updateCurrentCommand(0);
-  
 }
 
 void updateCurrentPosition(int position)
@@ -233,18 +231,25 @@ void loop()
   }
   else
   {
-    if(client.connected()){
+    if (client.connected())
+    {
       client.loop();
       return;
     }
-    if(client.connect((NAME + "_ID").c_str())){
+    if (client.connect((NAME + "_ID").c_str()))
+    {
       client.subscribe(MQTT_TOPIC);
       sendStatus("Connected");
       return;
     }
+    else
+    {
+      // Add this debug info
+      Serial.print("MQTT connection failed, rc=");
+      Serial.println(client.state());
+      Serial.println("Error codes: -4=timeout, -3=lost, -2=failed, -1=disconnected, 0=connected");
+    }
     delay(1000); // Wait before retrying connection
     Serial.println("Reconnecting to MQTT...");
-    
-    
   }
 }
