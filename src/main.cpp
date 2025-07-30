@@ -10,6 +10,7 @@ const int MQTT_PORT = 1883;
 // === Globals ===
 WiFiClient espClient;
 PubSubClient client(espClient);
+//PLEASE
 
 const String CLIENT_ID = "Stepper_" + String(ESP.getChipId());
 const String MQTT_TOPIC = "Stepper/command";
