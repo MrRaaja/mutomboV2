@@ -1,11 +1,11 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
-#include <Arduino.h>
 // === Update these with your values ===
 const char *WIFI_SSID = "neoja";
 const char *WIFI_PASSWORD = "neojaajoen";
 const char *MQTT_SERVER = "192.168.1.200";
 const int MQTT_PORT = 1883;
+String info = "";
 
 // === Globals ===
 WiFiClient espClient;
@@ -21,15 +21,20 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
   Serial.print("Message arrived on topic: ");
   Serial.println(topic);
   Serial.print("Payload: ");
+  String message = "";
   for (unsigned int i = 0; i < length; i++)
   {
-    Serial.print((char)payload[i]);
+    message += ((char)payload[i]);
   }
-  Serial.println();
+  info = message;
+
+}
+extern String getCallbackInfo(){
+    return info;
 }
 
 // === Connect to WiFi ===
-void connectWiFi()
+extern void connectWiFi()
 {
   Serial.print("Connecting to WiFi ");
   Serial.println(WIFI_SSID);
@@ -43,7 +48,7 @@ void connectWiFi()
 }
 
 // === Connect (or reconnect) to MQTT broker ===
-void reconnectMQTT()
+extern void reconnectMQTT()
 {
   while (!client.connected())
   {
@@ -65,17 +70,16 @@ void reconnectMQTT()
   }
 }
 
-void setup()
+extern void setupMQTT()
 {
-  Serial.begin(115200);
   connectWiFi();
 
   client.setServer(MQTT_SERVER, MQTT_PORT);
   client.setCallback(mqttCallback);
 }
 
-void loop()
-{
+extern void loopMQTT(){
+    
   if (!client.connected())
   {
     reconnectMQTT();
