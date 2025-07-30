@@ -1,257 +1,83 @@
-
-#include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
-#include <Constants.h>
+#include <Arduino.h>
+// === Update these with your values ===
+const char *WIFI_SSID = "neoja";
+const char *WIFI_PASSWORD = "neojaajoen";
+const char *MQTT_SERVER = "192.168.1.200";
+const int MQTT_PORT = 1883;
 
-Command currentCommand;
-int currentPosition;
-
+// === Globals ===
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-void updateCurrentCommandMQTT(String message);
-void updateCurrentCommand(int cmd);
-void updateCurrentPosition(int position);
-void stepMotor(int steps, int direction);
-void stepWithoutBlocking(int stepsToMove);
-void stepToPosition(int targetPosition);
-void moveToSwitch(int direction);
-void sendStatus(String status);
-void connectWiFi();
-void connectToMQTT();
-void mqttCallback(char *topic, byte *payload, unsigned int length);
+const String CLIENT_ID = "Stepper_" + String(ESP.getChipId());
+const String MQTT_TOPIC = "Stepper/command";
 
-void connectToMQTT(){
-  client.setServer(MQTT_SERVER, MQTT_PORT);
-  client.setCallback(mqttCallback);
-
-  while(!client.connected()){
-    Serial.println("Connecting to MQTT server...");
-    if(client.connect(CLIENT_ID)){
-      Serial.println("Connected");
-      client.subscribe(MQTT_TOPIC);
-    }
-    else{
-      Serial.println("FAILED to connect, rc=" + String(client.state()));
-      delay(5000); // Retry after 5 seconds
-    }
+// === MQTT callback - just print received messages ===
+void mqttCallback(char *topic, byte *payload, unsigned int length)
+{
+  Serial.print("Message arrived on topic: ");
+  Serial.println(topic);
+  Serial.print("Payload: ");
+  for (unsigned int i = 0; i < length; i++)
+  {
+    Serial.print((char)payload[i]);
   }
+  Serial.println();
 }
 
+// === Connect to WiFi ===
 void connectWiFi()
 {
+  Serial.print("Connecting to WiFi ");
+  Serial.println(WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to WiFi");
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
-    Serial.println("not connected");
+    Serial.print(".");
   }
-  Serial.println(" Connected!");
+  Serial.println("\nWiFi connected! IP: " + WiFi.localIP().toString());
 }
-void mqttCallback(char *topic, byte *payload, unsigned int length)
+
+// === Connect (or reconnect) to MQTT broker ===
+void reconnectMQTT()
 {
-  String message = "";
-  for (int i = 0; i < length; i++)
+  while (!client.connected())
   {
-    message += (char)payload[i];
-  }
+    Serial.print("Attempting MQTT connection with client ID: ");
+    Serial.println(CLIENT_ID);
 
-  Serial.println("MQTT command: " + message);
-
-  updateCurrentCommandMQTT(message);
-}
-
-void sendStatus(String status)
-{
-  if (client.connected())
-  {
-    client.publish(MQTT_TOPIC, status.c_str());
-    Serial.println("Sent: " + status);
-  }
-}
-void updateCurrentCommandMQTT(String message)
-{
-  if (message == "open")
-    updateCurrentCommand(1);
-  else if (message == "close")
-    updateCurrentCommand(2);
-  else if (message == "half")
-    updateCurrentCommand(3);
-  else if (message == "pos")
-    updateCurrentCommand(4);
-  else if (message == "reset")
-    updateCurrentCommand(5);
-  else
-    updateCurrentCommand(0);
-}
-
-void updateCurrentPosition(int position)
-{
-  if (currentPosition < 0)
-  {
-    Serial.println("❗ Error: Current position cannot be negative. Resetting to 0.");
-    currentPosition = 0;
-  }
-  else if (currentPosition > TOTAL_STEPS)
-  {
-    Serial.println("❗ Error: Current position exceeds total steps. Resetting to TOTAL_STEPS.");
-    currentPosition = TOTAL_STEPS;
-  }
-  else
-  {
-    currentPosition = position;
-    Serial.println("✅ Current position updated to: " + String(currentPosition) + " steps");
-  }
-}
-
-void stepMotor(int steps, int direction)
-{
-  digitalWrite(DIR_PIN, direction > 0 ? HIGH : LOW);
-  for (int i = 0; i < abs(steps); i++)
-  {
-    digitalWrite(STEP_PIN, 50);
-    delayMicroseconds(MOTOR_DELAY); // adjust speed
-    digitalWrite(STEP_PIN, 0);
-    delayMicroseconds(MOTOR_DELAY);
-  }
-}
-void stepWithoutBlocking(int stepsToMove)
-{
-  int direction = (stepsToMove > 0) ? 1 : -1;
-  int stepsRemaining = abs(stepsToMove);
-
-  for (int i = 0; i < stepsRemaining; i++)
-  {
-    stepMotor(1, direction);
-    updateCurrentPosition(currentPosition + (STEPS_PER_LOOP * direction));
-    yield(); // prevent WDT reset
-  }
-}
-void stepToPosition(int targetPosition)
-{
-  int stepsToMove = targetPosition - currentPosition;
-  stepWithoutBlocking(stepsToMove);
-}
-void updateCurrentCommand(int cmd)
-{
-
-  switch (cmd)
-  {
-  case 1:
-    currentCommand = OPEN;
-    break;
-
-  case 2:
-    currentCommand = CLOSE;
-    break;
-
-  case 3:
-    currentCommand = HALF;
-    break;
-  case 4:
-    currentCommand = GET_POSITION;
-    break;
-  default:
-    currentCommand = UNKNOWN;
-    break;
-  }
-}
-
-void updateCurrentCommand()
-{
-  updateCurrentCommand(Serial.readStringUntil('\n').toInt());
-}
-
-void moveToSwitch(int direction)
-{
-  while (digitalRead(LIMIT_SWITCH_PIN) == HIGH)
-  { // need to check if != or == idk how this works
-    stepWithoutBlocking(direction);
+    if (client.connect(CLIENT_ID.c_str()))
+    {
+      Serial.println("MQTT connected!");
+      client.subscribe(MQTT_TOPIC.c_str());
+    }
+    else
+    {
+      Serial.print("Failed to connect, rc=");
+      Serial.print(client.state());
+      Serial.println(" — trying again in 2 seconds");
+      delay(2000);
+    }
   }
 }
 
 void setup()
 {
-  currentPosition = 0;
-  currentCommand = UNKNOWN;
   Serial.begin(115200);
-  pinMode(STEP_PIN, OUTPUT);
-  pinMode(DIR_PIN, OUTPUT);
-  pinMode(EN_PIN, OUTPUT);
-  digitalWrite(EN_PIN, LOW); // Enable the driver
-  pinMode(LIMIT_SWITCH_PIN, INPUT_PULLUP);
-
-  if (digitalRead(LIMIT_SWITCH_PIN) == LOW)
-  {
-    Serial.println("⚠️ Limit switch is already triggered. Resetting position to 0.");
-    currentPosition = TOTAL_STEPS;
-  }
-  else
-  {
-    Serial.println("✅ Limit switch is not triggered.");
-  }
-
   connectWiFi();
-  delay(2000);
-  connectToMQTT();
 
-  Serial.println("Stepper ready.");
-  Serial.println("MQTT ready! Send commands to topic: " + NAME + "/command");
-  Serial.println("Available commands: open, close, half, pos, reset");
-}
-
-void loopSerial()
-{
-  if (Serial.available())
-  {
-    updateCurrentCommand();
-
-    switch (currentCommand)
-    {
-
-    case OPEN:
-      stepToPosition(0);
-      Serial.println("🚪 Opened to maximum position: " + String(TOTAL_STEPS) + " steps");
-      break;
-
-    case CLOSE:
-
-      moveToSwitch(HOME_DIRECTION);
-      updateCurrentPosition(TOTAL_STEPS);
-      Serial.println("🏠 Homing complete. Current position reset to " + TOTAL_STEPS);
-      break;
-
-    case HALF:
-      stepToPosition(TOTAL_STEPS / 2);
-      Serial.println("🚪 Moved to half position: " + String(TOTAL_STEPS / 2) + " steps");
-      break;
-
-    case GET_POSITION:
-      Serial.println("📍 Current Position: " + String(currentPosition) + " steps");
-      break;
-    case RESET:
-      Serial.println("♻️ Resetting position counter to 0 (no movement)");
-      updateCurrentPosition(0);
-      break;
-    default:
-      Serial.println("❓ Unknown command. Try: open, close, half, pos, reset");
-      break;
-    }
-  }
+  client.setServer(MQTT_SERVER, MQTT_PORT);
+  client.setCallback(mqttCallback);
 }
 
 void loop()
 {
-  if(useMQTT){
-    if (!client.connected())
-    {
-      connectToMQTT();
-    }
-    client.loop();
+  if (!client.connected())
+  {
+    reconnectMQTT();
   }
-  else{
-    loopSerial();
-  }
+  client.loop();
 }
